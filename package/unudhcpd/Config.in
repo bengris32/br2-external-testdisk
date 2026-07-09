@@ -1,0 +1,14 @@
+config BR2_PACKAGE_UNUDHCPD
+	bool "unudhcpd"
+	help
+	  This is an extremely basic DHCP server that only issues 1
+	  IP address to any client that sends a DHCP{OFFER,REQUEST}.
+
+	  It is meant to be used on an interface that will only ever
+	  see 1 client at a time, but where the client's MAC may change,
+	  making it inconvenient to try and configure leasing, etc on other
+	  DHCP servers.
+	  
+	  With unudhcpd, the client always gets an IP quickly.
+
+	  If unsure, say N.

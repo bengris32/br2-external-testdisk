@@ -1,0 +1,2 @@
+source "$BR2_EXTERNAL_TESTDISK_PATH/package/unudhcpd/Config.in"
+source "$BR2_EXTERNAL_TESTDISK_PATH/package/usbgadget/Config.in"

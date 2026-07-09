@@ -1,0 +1,97 @@
+#!/bin/sh
+#
+# Mount configfs, configure serial gadget and pull up UDC
+#
+
+source /etc/gadget.conf
+
+CONFIGFS_HOME="/sys/kernel/config"
+CONFIGFS_GADGET="$CONFIGFS_HOME/usb_gadget/g1"
+
+setup_configfs() {
+	# See sections 1 - 4 of https://docs.kernel.org/usb/gadget_configfs.html
+	# create mount point and mount configfs
+	mkdir "$CONFIGFS_HOME"
+	mount none "$CONFIGFS_HOME" -t configfs
+
+	# create directory for the gadget and set vendor,
+	# product and strings.
+	mkdir -p "$CONFIGFS_GADGET"
+	echo "$IDVENDOR" > "$CONFIGFS_GADGET/idVendor"
+	echo "$IDPRODUCT" > "$CONFIGFS_GADGET/idProduct"
+
+	mkdir -p "$CONFIGFS_GADGET/strings/0x409"
+	echo "$SERIALNUMBER" > "$CONFIGFS_GADGET/strings/0x409/serialnumber"
+	echo "$MANUFACTURER" > "$CONFIGFS_GADGET/strings/0x409/manufacturer"
+	echo "$PRODUCT" > "$CONFIGFS_GADGET/strings/0x409/product"
+
+	# create configuration for functions
+	mkdir -p "$CONFIGFS_GADGET/configs/c.1/strings/0x409"
+	echo "C1" > "$CONFIGFS_GADGET/configs/c.1/strings/0x409/configuration"
+	echo 500 > "$CONFIGFS_GADGET/configs/c.1/MaxPower"
+
+	# create the function
+	mkdir -p "$CONFIGFS_GADGET/functions/$GADGET_FUNCTION"
+}
+
+remove_configfs() {
+	# See section 7 of https://docs.kernel.org/usb/gadget_configfs.html
+
+	# delete the gadgets configuration
+	rmdir "$CONFIGFS_GADGET/configs/c.1/strings/0x409"
+	rmdir "$CONFIGFS_GADGET/configs/c.1"
+
+	# delete the gadgets strings
+	rmdir "$CONFIGFS_GADGET/strings/0x409"
+
+	# destroy the functions
+	for function in "$CONFIGFS_GADGET/functions/"*.usb*; do
+		rmdir "$function"
+	done
+
+	# finally the gadget can be removed
+	rmdir "$CONFIGFS_GADGET"
+
+	# unmount configfs
+	umount "$CONFIGFS_HOME"
+}
+
+pull_up_gadget() {
+	# See sections 4 - 5 of https://docs.kernel.org/usb/gadget_configfs.html
+
+	# bind the function to the gadgets configuration
+	ln -s "$CONFIGFS_GADGET/functions/$1" "$CONFIGFS_GADGET/configs/c.1/"
+
+	# pull up the UDC!
+	ls /sys/class/udc | head -n 1 > "$CONFIGFS_GADGET/UDC"
+}
+
+pull_down_gadget() {
+	# See section 6 of https://docs.kernel.org/usb/gadget_configfs.html
+
+	# pull down UDC
+	echo "" > "$CONFIGFS_GADGET/UDC"
+
+	# unbind and remove any function from the gadgets configuration
+	rm "$CONFIGFS_GADGET/configs/c.1/"*.usb*
+}
+
+case "$1" in
+	start)
+		echo "Configuring USB serial gadget"
+		setup_configfs
+		pull_up_gadget "$GADGET_FUNCTION"
+		;;
+	stop)
+		echo "Stopping USB serial gadget connection"
+		pull_down_gadget
+		remove_configfs
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+esac
+
+exit $?

@@ -1,0 +1,9 @@
+config BR2_PACKAGE_USBGADGET
+	bool "usbgadget"
+	help
+	  This package provides init scripts for configuring a USB gadget.
+	  The default configuration file enables NCM to allow a connected
+	  device (like a PC) to directly access on-device network
+	  services like an SSH server.
+
+	  If unsure, say N.
